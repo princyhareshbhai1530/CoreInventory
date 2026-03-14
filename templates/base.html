@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>{% block title %}Inventify{% endblock %}</title>
+
+  <!-- Bootstrap 5 -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <!-- Bootstrap Icons -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet"/>
+  <!-- Google Fonts: DM Sans -->
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+  <!-- Custom styles -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}"/>
+
+  {% block head %}{% endblock %}
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════
+     SIDEBAR
+═══════════════════════════════════════════ -->
+<aside class="sidebar" id="sidebar">
+
+  <!-- Logo -->
+  <div class="sidebar-logo">
+    <div class="logo-icon" style="background:none;padding:0;overflow:hidden;border-radius:10px;width:38px;height:38px;flex-shrink:0;">
+      <img src="{{ url_for('static', filename='img/inventify_logo.jpeg') }}" alt="Inventify" style="width:38px;height:38px;object-fit:cover;border-radius:10px;display:block;">
+    </div>
+    <div class="logo-text">
+      <span class="logo-name">Inventify</span>
+      <span class="logo-sub">AI Inventory OS</span>
+    </div>
+  </div>
+
+  <!-- Navigation -->
+  <nav class="sidebar-nav">
+
+    <div class="nav-section-label">Main</div>
+
+    <a href="{{ url_for('dashboard_page') }}"
+       class="nav-item {% if request.endpoint == 'dashboard_page' %}active{% endif %}">
+      <i class="bi bi-speedometer2"></i>
+      <span>Dashboard</span>
+    </a>
+
+    <div class="nav-section-label">Operations</div>
+
+    <!-- Operations submenu toggle -->
+    <div class="nav-item nav-parent {% if request.endpoint in ['receipts_page','receipt_detail_page','deliveries_page','delivery_detail_page','adjustments_page'] %}active{% endif %}"
+         onclick="toggleOpsMenu(this)">
+      <i class="bi bi-clipboard-data"></i>
+      <span>Operations</span>
+      <i class="bi bi-chevron-down nav-chevron" style="margin-left:auto;font-size:11px;"></i>
+    </div>
+    <div class="nav-submenu {% if request.endpoint in ['receipts_page','receipt_detail_page','deliveries_page','delivery_detail_page','adjustments_page'] %}open{% endif %}" id="ops-submenu">
+      <a href="{{ url_for('receipts_page') }}"
+         class="nav-item nav-sub {% if request.endpoint in ['receipts_page','receipt_detail_page'] %}active{% endif %}">
+        <i class="bi bi-box-arrow-in-down"></i>
+        <span>Receipt</span>
+        <span class="nav-badge" id="badge-receipts"></span>
+      </a>
+      <a href="{{ url_for('deliveries_page') }}"
+         class="nav-item nav-sub {% if request.endpoint in ['deliveries_page','delivery_detail_page'] %}active{% endif %}">
+        <i class="bi bi-box-arrow-up"></i>
+        <span>Delivery</span>
+        <span class="nav-badge" id="badge-deliveries"></span>
+      </a>
+      <a href="{{ url_for('adjustments_page') }}"
+         class="nav-item nav-sub {% if request.endpoint == 'adjustments_page' %}active{% endif %}">
+        <i class="bi bi-sliders"></i>
+        <span>Adjustment</span>
+      </a>
+    </div>
+
+    <a href="{{ url_for('move_history_page') }}"
+       class="nav-item {% if request.endpoint == 'move_history_page' %}active{% endif %}">
+      <i class="bi bi-arrow-left-right"></i>
+      <span>Move History</span>
+    </a>
+
+    <div class="nav-section-label">Inventory</div>
+
+    <a href="{{ url_for('stock_page') }}"
+       class="nav-item {% if request.endpoint == 'stock_page' %}active{% endif %}">
+      <i class="bi bi-boxes"></i>
+      <span>Stock</span>
+    </a>
+
+    <a href="{{ url_for('products_page') }}"
+       class="nav-item {% if request.endpoint == 'products_page' %}active{% endif %}">
+      <i class="bi bi-grid-3x3-gap"></i>
+      <span>Products</span>
+    </a>
+
+    <div class="nav-section-label">Analytics</div>
+
+    <a href="{{ url_for('intelligence_page') }}"
+       class="nav-item {% if request.endpoint == 'intelligence_page' %}active{% endif %}">
+      <i class="bi bi-cpu" style="{% if request.endpoint == 'intelligence_page' %}color:#8b5cf6;{% endif %}"></i>
+      <span>Intelligence</span>
+      <span style="margin-left:auto;font-size:9px;font-weight:700;background:linear-gradient(135deg,#8b5cf6,#6d28d9);color:#fff;padding:2px 6px;border-radius:10px;letter-spacing:0.5px;">AI</span>
+    </a>
+
+    <div class="nav-section-label">System</div>
+
+    <a href="{{ url_for('settings_page') }}"
+       class="nav-item {% if request.endpoint == 'settings_page' %}active{% endif %}">
+      <i class="bi bi-gear"></i>
+      <span>Settings</span>
+    </a>
+
+  </nav>
+
+  <!-- Sidebar footer -->
+  <div class="sidebar-footer">
+    <div class="user-pill">
+      <div class="user-avatar" id="sidebar-avatar">{{ current_user.login_id[0].upper() if current_user else 'A' }}</div>
+      <div class="user-info">
+        <span class="user-name" id="sidebar-username">{{ current_user.login_id if current_user else 'Admin' }}</span>
+        <span class="user-role">Inventory Manager</span>
+      </div>
+    </div>
+    <button onclick="doLogout()" style="
+      width:100%; margin-top:8px; padding:8px 12px;
+      background:none; border:1px solid #334155;
+      border-radius:6px; color:rgba(255,255,255,0.45);
+      font-size:12px; font-weight:500; cursor:pointer;
+      font-family:inherit; display:flex; align-items:center;
+      gap:6px; transition:all 0.15s;">
+      <i class="bi bi-box-arrow-left"></i> Logout
+    </button>
+  </div>
+
+</aside>
+
+<!-- ═══════════════════════════════════════════
+     MAIN CONTENT
+═══════════════════════════════════════════ -->
+<div class="main-wrapper">
+
+  <!-- Top bar -->
+  <header class="topbar">
+    <div class="topbar-left">
+      <!-- Mobile menu toggle -->
+      <button class="sidebar-toggle d-lg-none" onclick="toggleSidebar()">
+        <i class="bi bi-list"></i>
+      </button>
+      <div class="page-breadcrumb">
+        <span class="breadcrumb-page">{% block page_title %}Page{% endblock %}</span>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <!-- Low stock alert pill -->
+      <div class="alert-pill" id="topbar-alert" style="display:none;">
+        <i class="bi bi-exclamation-triangle-fill"></i>
+        <span id="topbar-alert-text"></span>
+      </div>
+      <button class="dark-mode-btn" id="dark-mode-toggle" onclick="toggleDarkMode()" title="Toggle dark mode">
+        <i class="bi bi-moon-fill" id="dark-mode-icon"></i>
+      </button>
+      <div class="topbar-date">
+        <i class="bi bi-calendar3"></i>
+        <span id="topbar-date"></span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Flash messages -->
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <div class="flash-container">
+        {% for category, message in messages %}
+          <div class="flash-msg flash-{{ category }}">
+            <i class="bi bi-{% if category == 'success' %}check-circle-fill{% elif category == 'danger' %}x-circle-fill{% else %}info-circle-fill{% endif %}"></i>
+            {{ message }}
+            <button onclick="this.parentElement.remove()"><i class="bi bi-x"></i></button>
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+
+  <!-- Page content injected here -->
+  <main class="page-content">
+    {% block content %}{% endblock %}
+  </main>
+
+</div>
+
+<!-- ═══════════════════════════════════════════
+     GLOBAL TOAST NOTIFICATION
+═══════════════════════════════════════════ -->
+<div class="toast-container" id="toast-container"></div>
+
+
+<!-- Dark mode styles -->
+<style>
+  /* ── Dark mode button ── */
+  .dark-mode-btn {
+    background: none;
+    border: 1.5px solid var(--color-border, #e2e8f0);
+    border-radius: 8px;
+    width: 36px; height: 36px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    color: #64748b;
+    font-size: 15px;
+    transition: all 0.2s;
+    flex-shrink: 0;
+  }
+  .dark-mode-btn:hover {
+    background: #f1f5f9;
+    color: #0f172a;
+    border-color: #94a3b8;
+  }
+
+  /* ── Dark mode applied to body ── */
+  body.dark {
+    --content-bg:    #0f172a;
+    --card-bg:       #1e293b;
+    --border:        #334155;
+    --border-light:  #263248;
+    --text-primary:  #f1f5f9;
+    --text-secondary:#94a3b8;
+    --text-muted:    #64748b;
+    --sidebar-bg:    #020617;
+    background-color: #0f172a;
+    color: #f1f5f9;
+  }
+  body.dark .topbar {
+    background: #1e293b !important;
+    border-color: #334155 !important;
+  }
+  body.dark .dark-mode-btn {
+    border-color: #334155;
+    color: #94a3b8;
+  }
+  body.dark .dark-mode-btn:hover {
+    background: #334155;
+    color: #f1f5f9;
+  }
+  body.dark .ci-card {
+    background: #1e293b !important;
+    border-color: #334155 !important;
+  }
+  body.dark .ci-card-footer {
+    background: #0f172a !important;
+    border-color: #334155 !important;
+  }
+  body.dark .ci-card-header {
+    border-color: #334155 !important;
+  }
+  body.dark .kpi-card {
+    background: #1e293b !important;
+    border-color: #334155 !important;
+  }
+  body.dark .ci-table thead th {
+    background: #263248 !important;
+    color: #64748b !important;
+    border-color: #334155 !important;
+  }
+  body.dark .ci-table tbody tr {
+    border-color: #263248 !important;
+  }
+  body.dark .ci-table tbody tr:hover {
+    background: #263248 !important;
+  }
+  body.dark .ci-table tbody td {
+    color: #f1f5f9 !important;
+  }
+  body.dark .ci-table tbody td.muted {
+    color: #94a3b8 !important;
+  }
+  body.dark .ci-input,
+  body.dark .ci-select,
+  body.dark .search-input {
+    background: #263248 !important;
+    color: #f1f5f9 !important;
+    border-color: #334155 !important;
+  }
+  body.dark .ci-input::placeholder,
+  body.dark .search-input::placeholder {
+    color: #64748b !important;
+  }
+  body.dark .modal-content {
+    background: #1e293b !important;
+    border-color: #334155 !important;
+    color: #f1f5f9 !important;
+  }
+  body.dark .modal-header,
+  body.dark .modal-footer {
+    border-color: #334155 !important;
+  }
+  body.dark .modal-title,
+  body.dark .modal-body {
+    color: #f1f5f9 !important;
+  }
+  body.dark .ci-label { color: #94a3b8 !important; }
+  body.dark .filter-tab {
+    background: #1e293b !important;
+    border-color: #334155 !important;
+    color: #94a3b8 !important;
+  }
+  body.dark .filter-tab:hover {
+    border-color: #10b981 !important;
+    color: #10b981 !important;
+  }
+  body.dark .filter-tab.active {
+    background: #10b981 !important;
+    border-color: #10b981 !important;
+    color: #fff !important;
+  }
+  body.dark .btn-ci-secondary {
+    background: #1e293b !important;
+    border-color: #334155 !important;
+    color: #f1f5f9 !important;
+  }
+  body.dark .btn-ci-secondary:hover {
+    background: #263248 !important;
+  }
+  body.dark .page-header-left h1,
+  body.dark .page-header-left p,
+  body.dark .ci-card-title,
+  body.dark .kpi-label,
+  body.dark .kpi-sub {
+    color: #f1f5f9 !important;
+  }
+  body.dark .kpi-label { color: #94a3b8 !important; }
+  body.dark .kpi-sub   { color: #64748b !important; }
+  body.dark .low-stock-row { background: #3b1f06 !important; }
+  body.dark .low-stock-row:hover { background: #4a2a0a !important; }
+  body.dark .info-field label { color: #64748b !important; }
+  body.dark .info-field span  { color: #f1f5f9 !important; }
+  body.dark .status-flow {
+    background: #0f172a !important;
+    border-color: #334155 !important;
+  }
+  body.dark .topbar-date { color: #64748b !important; }
+  body.dark .breadcrumb-page { color: #f1f5f9 !important; }
+  body.dark .empty-state { color: #64748b !important; }
+  body.dark .empty-state h6 { color: #94a3b8 !important; }
+  body.dark .table-ref { color: #60a5fa !important; }
+
+  /* ── Operation type badge dark fix ── */
+  body.dark [style*="background:#fef3c7"],
+  body.dark [style*="background: #fef3c7"],
+  body.dark [style*="background:var(--amber-light)"] {
+    background: rgba(245,158,11,0.18) !important;
+    color: #fbbf24 !important;
+  }
+  body.dark [style*="background:#dbeafe"],
+  body.dark [style*="background: #dbeafe"],
+  body.dark [style*="background:var(--blue-light)"] {
+    background: rgba(59,130,246,0.18) !important;
+    color: #93c5fd !important;
+  }
+  body.dark [style*="background:#d1fae5"],
+  body.dark [style*="background: #d1fae5"],
+  body.dark [style*="background:var(--emerald-light)"] {
+    background: rgba(16,185,129,0.18) !important;
+    color: #6ee7b7 !important;
+  }
+  body.dark [style*="background:#fee2e2"],
+  body.dark [style*="background: #fee2e2"],
+  body.dark [style*="background:var(--red-light)"] {
+    background: rgba(239,68,68,0.18) !important;
+    color: #fca5a5 !important;
+  }
+  body.dark [style*="background:var(--slate-light)"],
+  body.dark [style*="background:#f1f5f9"],
+  body.dark [style*="background: #f1f5f9"] {
+    background: #263248 !important;
+    color: #94a3b8 !important;
+  }
+
+  /* ── Top moving products cards dark fix ── */
+  body.dark .top-product-row {
+    background: #263248 !important;
+    border-color: #334155 !important;
+    color: #f1f5f9 !important;
+  }
+  body.dark .top-product-row:hover {
+    background: #2d3f5a !important;
+    border-color: #3b82f6 !important;
+  }
+  body.dark .top-product-name { color: #f1f5f9 !important; }
+  body.dark .top-product-sku  { color: #64748b !important; }
+  body.dark .top-product-vol  { color: #f1f5f9 !important; }
+  body.dark .top-product-bar-wrap { background: #334155 !important; }
+
+  /* ── Chart cards dark fix ── */
+  body.dark .chart-card {
+    background: #1e293b !important;
+    border-color: #334155 !important;
+  }
+  body.dark .chart-title { color: #f1f5f9 !important; }
+  body.dark .chart-sub   { color: #64748b !important; }
+
+  /* ── Intelligence page dark fixes ── */
+  body.dark .kpi-card { background: #1e293b !important; border-color: #334155 !important; }
+  body.dark .kpi-val  { color: #f1f5f9 !important; }
+  body.dark .kpi-lbl  { color: #94a3b8 !important; }
+  body.dark .kpi-sub  { color: #64748b !important; }
+  body.dark .health-label { color: #94a3b8 !important; }
+  body.dark .health-count { color: #f1f5f9 !important; }
+  body.dark .health-bar-wrap { background: #334155 !important; }
+  body.dark .forecast-table th {
+    color: #64748b !important;
+    border-color: #334155 !important;
+  }
+  body.dark .forecast-table td { border-color: #263248 !important; }
+  body.dark .forecast-table tr:hover td { background: #263248 !important; }
+
+  /* ── Inline style text color overrides in dark ── */
+  body.dark .info-field label,
+  body.dark [class*="detail"] label { color: #64748b !important; }
+  body.dark .info-field span,
+  body.dark [class*="detail"] span  { color: #f1f5f9 !important; }
+
+  /* ── Status steps dark ── */
+  body.dark .status-step       { color: #475569 !important; }
+  body.dark .status-step.active-step { color: #10b981 !important; }
+  body.dark .status-step.done-step   { color: #059669 !important; }
+
+  /* ── Inline hardcoded white backgrounds in cards ── */
+  body.dark .detail-card,
+  body.dark .detail-section,
+  body.dark .op-card {
+    background: #1e293b !important;
+    border-color: #334155 !important;
+    color: #f1f5f9 !important;
+  }
+
+  /* ── General text inside cards ── */
+  body.dark h1, body.dark h2, body.dark h3,
+  body.dark h4, body.dark h5, body.dark h6 {
+    color: #f1f5f9 !important;
+  }
+  body.dark p { color: #94a3b8; }
+
+  /* ── Nav submenu ── */
+  .nav-parent { cursor: pointer; }
+  .nav-chevron { transition: transform 0.2s; }
+  .nav-submenu { overflow: hidden; max-height: 0; transition: max-height 0.25s ease; }
+  .nav-submenu.open { max-height: 200px; }
+  .nav-submenu.open .nav-chevron { transform: rotate(180deg); }
+  .nav-sub { padding-left: 32px !important; font-size: 13px !important; }
+
+</style>
+
+<!-- Bootstrap JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+<!-- Global JS utilities -->
+<script>
+  // ── Date in topbar ──────────────────────────────
+  const dateEl = document.getElementById('topbar-date');
+  if (dateEl) {
+    const now = new Date();
+    dateEl.textContent = now.toLocaleDateString('en-IN', {
+      weekday: 'short', day: 'numeric', month: 'short', year: 'numeric'
+    });
+  }
+
+  // ── Mobile sidebar toggle ───────────────────────
+  function toggleSidebar() {
+    document.getElementById('sidebar').classList.toggle('open');
+  }
+
+  // ── Toast notification system ───────────────────
+  function showToast(message, type = 'success') {
+    const container = document.getElementById('toast-container');
+    const icons = { success: 'check-circle-fill', danger: 'x-circle-fill', warning: 'exclamation-triangle-fill', info: 'info-circle-fill' };
+    const toast = document.createElement('div');
+    toast.className = `ci-toast ci-toast-${type}`;
+    toast.innerHTML = `
+      <i class="bi bi-${icons[type] || icons.info}"></i>
+      <span>${message}</span>
+    `;
+    container.appendChild(toast);
+    // Animate in
+    setTimeout(() => toast.classList.add('show'), 10);
+    // Auto remove after 3.5s
+    setTimeout(() => {
+      toast.classList.remove('show');
+      setTimeout(() => toast.remove(), 400);
+    }, 3500);
+  }
+
+  // ── Fetch sidebar badge counts from dashboard ───
+  async function loadSidebarBadges() {
+    try {
+      const res  = await fetch('/api/dashboard');
+      const data = await res.json();
+
+      const rBadge = document.getElementById('badge-receipts');
+      const dBadge = document.getElementById('badge-deliveries');
+      const alert  = document.getElementById('topbar-alert');
+      const alertText = document.getElementById('topbar-alert-text');
+
+      if (rBadge && data.pending_receipts > 0) {
+        rBadge.textContent = data.pending_receipts;
+        rBadge.style.display = 'inline-flex';
+      }
+      if (dBadge && data.pending_deliveries > 0) {
+        dBadge.textContent = data.pending_deliveries;
+        dBadge.style.display = 'inline-flex';
+      }
+      if (alert && data.low_stock_count > 0) {
+        alert.style.display = 'flex';
+        alertText.textContent = `${data.low_stock_count} item${data.low_stock_count > 1 ? 's' : ''} low on stock`;
+      }
+    } catch (e) {
+      console.warn('Could not load sidebar badges:', e);
+    }
+  }
+
+  // ── Status badge helper ─────────────────────────
+  function statusBadge(status) {
+    const map = {
+      draft:     ['badge-draft',     'Draft'],
+      waiting:   ['badge-waiting',   'Waiting'],
+      ready:     ['badge-ready',     'Ready'],
+      done:      ['badge-done',      'Done'],
+      cancelled: ['badge-cancelled', 'Cancelled'],
+    };
+    const [cls, label] = map[status] || ['badge-draft', status];
+    return `<span class="ci-badge ${cls}">${label}</span>`;
+  }
+
+  // ── Format date nicely ──────────────────────────
+  function fmtDate(str) {
+    if (!str) return '—';
+    const d = new Date(str);
+    return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+  }
+
+  // ── Format quantity with + / - sign and color ───
+  function fmtQty(qty) {
+    const n = parseFloat(qty);
+    if (n > 0) return `<span class="qty-in">+${n}</span>`;
+    if (n < 0) return `<span class="qty-out">${n}</span>`;
+    return `<span>${n}</span>`;
+  }
+
+  // Load badges on every page
+  loadSidebarBadges();
+
+  // ── Ops submenu toggle ──────────────────────────
+  function toggleOpsMenu(el) {
+    const sub = document.getElementById('ops-submenu');
+    const chev = el.querySelector('.nav-chevron');
+    const isOpen = sub.classList.toggle('open');
+    if (chev) chev.style.transform = isOpen ? 'rotate(180deg)' : 'rotate(0deg)';
+  }
+  // Keep open if on an ops page
+  document.addEventListener('DOMContentLoaded', function() {
+    const sub = document.getElementById('ops-submenu');
+    if (sub && sub.classList.contains('open')) {
+      const chev = document.querySelector('.nav-chevron');
+      if (chev) chev.style.transform = 'rotate(180deg)';
+    }
+  });
+
+
+  // ── Logout ──────────────────────────────────────
+  async function doLogout() {
+    await fetch('/api/logout', { method: 'POST' });
+    window.location.href = '/login';
+  }
+
+  // ════════════════════════════════════════
+  // DARK MODE
+  // ════════════════════════════════════════
+  function toggleDarkMode() {
+    const isDark = document.body.classList.toggle('dark');
+    localStorage.setItem('darkMode', isDark ? '1' : '0');
+    const icon = document.getElementById('dark-mode-icon');
+    if (icon) icon.className = isDark ? 'bi bi-sun-fill' : 'bi bi-moon-fill';
+  }
+
+  // Apply saved preference on every page load (runs immediately)
+  if (localStorage.getItem('darkMode') === '1') {
+    document.body.classList.add('dark');
+    document.addEventListener('DOMContentLoaded', function() {
+      const icon = document.getElementById('dark-mode-icon');
+      if (icon) icon.className = 'bi bi-sun-fill';
+    });
+  }
+
+</script>
+
+{% block scripts %}{% endblock %}
+</body>
+</html>

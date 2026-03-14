@@ -1,0 +1,350 @@
+{% extends "base.html" %}
+{% block title %}Receipts — Inventify{% endblock %}
+{% block page_title %}Receipts{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+  <div class="page-header-left">
+    <h1>Receipts</h1>
+    <p>Incoming stock from vendors. Reference format: WH/IN/0001</p>
+  </div>
+</div>
+
+<!-- Toolbar: NEW + search + view toggle (exact mockup) -->
+<div style="display:flex;align-items:center;justify-content:space-between;
+            flex-wrap:wrap;gap:12px;margin-bottom:16px;">
+  <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+    <!-- NEW button (exact mockup style) -->
+    <button class="btn-ci-primary" onclick="openNewReceiptModal()"
+            style="padding:8px 18px;font-size:13px;">
+      <i class="bi bi-plus-lg"></i> NEW
+    </button>
+    <!-- Status filter tabs -->
+    <div class="filter-tabs">
+      <button class="filter-tab active" onclick="setFilter('all',this)">All</button>
+      <button class="filter-tab" onclick="setFilter('draft',this)">Draft</button>
+      <button class="filter-tab" onclick="setFilter('ready',this)">Ready</button>
+      <button class="filter-tab" onclick="setFilter('done',this)">Done</button>
+      <button class="filter-tab" onclick="setFilter('cancelled',this)">Cancelled</button>
+    </div>
+  </div>
+  <div style="display:flex;align-items:center;gap:8px;">
+    <!-- Search by reference & contacts -->
+    <div class="search-wrap">
+      <i class="bi bi-search"></i>
+      <input type="text" class="search-input" id="receipt-search"
+             placeholder="Search by reference or contact..." oninput="filterTable()">
+    </div>
+    <!-- List/Kanban toggle -->
+    <div style="display:flex;border:1.5px solid var(--border);border-radius:8px;overflow:hidden;">
+      <button id="btn-list" onclick="setView('list')"
+              style="padding:7px 11px;border:none;cursor:pointer;font-size:13px;
+                     background:var(--emerald);color:#fff;" title="List View">
+        <i class="bi bi-list-ul"></i>
+      </button>
+      <button id="btn-kanban" onclick="setView('kanban')"
+              style="padding:7px 11px;border:none;cursor:pointer;font-size:13px;
+                     background:var(--card-bg);color:var(--text-secondary);" title="Kanban View">
+        <i class="bi bi-kanban"></i>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- LIST VIEW -->
+<div id="list-view">
+  <div class="ci-card">
+    <div class="ci-table-wrap">
+      <table class="ci-table">
+        <thead>
+          <tr>
+            <th>Reference</th>
+            <th>From</th>
+            <th>To</th>
+            <th>Contact</th>
+            <th>Schedule Date</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="receipts-body">
+          <tr><td colspan="6"><div style="display:flex;flex-direction:column;gap:10px;padding:12px 0;">
+            <div class="skeleton" style="height:18px;border-radius:4px;"></div>
+            <div class="skeleton" style="height:18px;width:85%;border-radius:4px;"></div>
+          </div></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="ci-card-footer" id="receipts-footer"
+         style="font-size:12px;color:var(--text-muted);">Loading...</div>
+  </div>
+</div>
+
+<!-- KANBAN VIEW -->
+<div id="kanban-view" style="display:none;">
+  <div class="row g-3" id="kanban-board"></div>
+</div>
+
+<!-- ══ NEW RECEIPT MODAL ══ -->
+<div class="modal fade" id="newReceiptModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">
+          <i class="bi bi-box-arrow-in-down me-2" style="color:var(--emerald);"></i>
+          New Receipt
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="row g-3 mb-3">
+          <div class="col-md-6">
+            <label class="ci-label">Receive From (Vendor) *</label>
+            <input type="text" class="ci-input" id="r-vendor"
+                   placeholder="e.g. Tata Steel Ltd">
+          </div>
+          <div class="col-md-6">
+            <label class="ci-label">Schedule Date</label>
+            <input type="date" class="ci-input" id="r-date">
+          </div>
+          <div class="col-md-6">
+            <label class="ci-label">Responsible</label>
+            <input type="text" class="ci-input" id="r-responsible"
+                   placeholder="Auto-filled from login">
+          </div>
+          <div class="col-md-6">
+            <label class="ci-label">Source Document (PO No.)</label>
+            <input type="text" class="ci-input" id="r-source"
+                   placeholder="e.g. PO/2026/001">
+          </div>
+        </div>
+
+        <!-- Products -->
+        <div style="border-top:1px solid var(--border);padding-top:14px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+            <span style="font-size:13px;font-weight:600;">
+              <i class="bi bi-list-ul me-1"></i> Products
+            </span>
+            <button class="btn-ci-secondary" style="padding:6px 12px;font-size:12px;"
+                    onclick="addProductRow()">
+              <i class="bi bi-plus-lg"></i> New Product
+            </button>
+          </div>
+          <table class="ci-table" style="font-size:13px;">
+            <thead>
+              <tr><th>Product</th><th style="width:140px;">Quantity</th><th style="width:40px;"></th></tr>
+            </thead>
+            <tbody id="receipt-items-body"></tbody>
+          </table>
+          <div id="no-items-msg" style="text-align:center;padding:16px;
+               color:var(--text-muted);font-size:13px;">
+            <i class="bi bi-plus-circle" style="display:block;font-size:20px;margin-bottom:6px;"></i>
+            Click "New Product" to add items.
+          </div>
+        </div>
+        <div id="receipt-error" class="ci-alert ci-alert-danger mt-3" style="display:none;"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-ci-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button class="btn-ci-primary" onclick="saveReceipt()" id="save-receipt-btn">
+          <i class="bi bi-floppy"></i> Create Receipt
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/operations.js') }}"></script>
+<script>
+let currentFilter = 'all';
+let currentView   = 'list';
+let allReceipts   = [];
+
+document.addEventListener('DOMContentLoaded', async () => {
+  await loadReceipts();
+  await loadProductsForDropdown();
+  document.getElementById('r-date').value = new Date().toISOString().split('T')[0];
+
+  // Auto-fill responsible from logged-in user
+  try {
+    const res  = await fetch('/api/me');
+    const user = await res.json();
+    if (user.login_id) document.getElementById('r-responsible').value = user.login_id;
+  } catch(e) {}
+
+  // Auto-open from dashboard
+  if (sessionStorage.getItem('autoOpenModal') === 'receipt') {
+    sessionStorage.removeItem('autoOpenModal');
+    setTimeout(() => openNewReceiptModal(), 500);
+  }
+});
+
+async function loadReceipts() {
+  try {
+    const res   = await fetch('/api/operations?type=receipt');
+    allReceipts = await res.json();
+    renderReceipts(allReceipts);
+  } catch(e) { showToast('Could not load receipts','danger'); }
+}
+
+function setFilter(status, btn) {
+  currentFilter = status;
+  document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  filterTable();
+}
+
+function filterTable() {
+  const search = document.getElementById('receipt-search').value.toLowerCase();
+  const filtered = allReceipts.filter(r => {
+    const matchStatus = currentFilter==='all' || r.status===currentFilter;
+    const matchSearch = !search ||
+      r.reference.toLowerCase().includes(search) ||
+      (r.partner_name||'').toLowerCase().includes(search);
+    return matchStatus && matchSearch;
+  });
+  if (currentView==='kanban') renderKanban(filtered);
+  else renderReceipts(filtered);
+}
+
+function setView(view) {
+  currentView = view;
+  document.getElementById('list-view').style.display   = view==='list' ? 'block' : 'none';
+  document.getElementById('kanban-view').style.display = view==='kanban' ? 'block' : 'none';
+  document.getElementById('btn-list').style.background   = view==='list'   ? 'var(--emerald)' : 'var(--card-bg)';
+  document.getElementById('btn-list').style.color        = view==='list'   ? '#fff' : 'var(--text-secondary)';
+  document.getElementById('btn-kanban').style.background = view==='kanban' ? 'var(--emerald)' : 'var(--card-bg)';
+  document.getElementById('btn-kanban').style.color      = view==='kanban' ? '#fff' : 'var(--text-secondary)';
+  filterTable();
+}
+
+function renderReceipts(receipts) {
+  const tbody  = document.getElementById('receipts-body');
+  const footer = document.getElementById('receipts-footer');
+  if (!receipts.length) {
+    tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state">
+      <i class="bi bi-inbox"></i><h6>No receipts found</h6>
+      <p>Click NEW to create your first receipt.</p></div></td></tr>`;
+    footer.textContent = 'No receipts'; return;
+  }
+  tbody.innerHTML = receipts.map(r => `
+    <tr onclick="location.href='/receipts/${r.id}'" style="cursor:pointer;">
+      <td><span class="table-ref">${r.reference}</span></td>
+      <td class="muted">${r.partner_name||'vendor'}</td>
+      <td><span style="background:var(--blue-light);color:#1d4ed8;padding:2px 8px;
+                       border-radius:10px;font-size:11px;font-weight:600;">WH/Stock</span></td>
+      <td style="font-weight:500;">${r.partner_name||'—'}</td>
+      <td class="muted">${fmtDate(r.scheduled_date)}</td>
+      <td>${statusBadge(r.status)}</td>
+    </tr>`).join('');
+  footer.textContent = `${receipts.length} receipt${receipts.length!==1?'s':''}`;
+}
+
+function renderKanban(receipts) {
+  const board = document.getElementById('kanban-board');
+  const cols  = {
+    draft:     {label:'Draft',     color:'var(--slate)',   items:[]},
+    ready:     {label:'Ready',     color:'var(--blue)',    items:[]},
+    done:      {label:'Done',      color:'var(--emerald)', items:[]},
+    cancelled: {label:'Cancelled', color:'var(--red)',     items:[]},
+  };
+  receipts.forEach(r => { if(cols[r.status]) cols[r.status].items.push(r); });
+  board.innerHTML = Object.entries(cols).map(([k,c]) => `
+    <div class="col-12 col-md-6 col-xl">
+      <div class="ci-card h-100">
+        <div style="padding:12px 16px;border-bottom:3px solid ${c.color};
+                    display:flex;align-items:center;justify-content:space-between;">
+          <span style="font-size:13px;font-weight:600;">${c.label}</span>
+          <span style="background:var(--content-bg);border-radius:12px;padding:2px 9px;
+                       font-size:12px;font-weight:700;color:var(--text-secondary);">
+            ${c.items.length}
+          </span>
+        </div>
+        <div style="padding:10px;display:flex;flex-direction:column;gap:8px;min-height:100px;">
+          ${c.items.length===0
+            ? '<div style="text-align:center;color:var(--text-muted);font-size:12px;padding:16px 0;">Empty</div>'
+            : c.items.map(r => `
+              <div onclick="location.href='/receipts/${r.id}'"
+                   style="background:var(--content-bg);border-radius:8px;padding:10px 12px;
+                          cursor:pointer;border-left:3px solid ${c.color};">
+                <div style="font-size:12px;font-weight:600;font-family:'DM Mono',monospace;
+                            color:var(--emerald-dark);margin-bottom:3px;">${r.reference}</div>
+                <div style="font-size:12px;color:var(--text-secondary);">${r.partner_name||'—'}</div>
+                <div style="font-size:11px;color:var(--text-muted);margin-top:3px;">
+                  ${fmtDate(r.scheduled_date)} · ${r.items.length} item${r.items.length!==1?'s':''}
+                </div>
+              </div>`).join('')
+          }
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+function openNewReceiptModal() {
+  document.getElementById('r-vendor').value = '';
+  document.getElementById('r-source').value = '';
+  document.getElementById('receipt-items-body').innerHTML = '';
+  document.getElementById('no-items-msg').style.display = 'block';
+  document.getElementById('receipt-error').style.display = 'none';
+  new bootstrap.Modal(document.getElementById('newReceiptModal')).show();
+}
+
+async function saveReceipt() {
+  const btn     = document.getElementById('save-receipt-btn');
+  const errorEl = document.getElementById('receipt-error');
+  errorEl.style.display = 'none';
+
+  const vendor = document.getElementById('r-vendor').value.trim();
+  if (!vendor) {
+    errorEl.style.display='flex';
+    errorEl.innerHTML='<i class="bi bi-x-circle-fill"></i> Vendor name is required.';
+    return;
+  }
+  const rows  = document.querySelectorAll('.receipt-item-row');
+  const items = [];
+  for (const row of rows) {
+    const pid = row.querySelector('.item-product-select').value;
+    const qty = parseFloat(row.querySelector('.item-qty-input').value);
+    if (!pid) { errorEl.style.display='flex'; errorEl.innerHTML='<i class="bi bi-x-circle-fill"></i> Select a product for all rows.'; return; }
+    if (!qty||qty<=0) { errorEl.style.display='flex'; errorEl.innerHTML='<i class="bi bi-x-circle-fill"></i> All quantities must be > 0.'; return; }
+    items.push({product_id:parseInt(pid), quantity_demanded:qty});
+  }
+
+  btn.disabled = true;
+  btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Creating...';
+  try {
+    const opRes = await fetch('/api/operations', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        operation_type:'receipt',
+        partner_name:vendor,
+        scheduled_date:document.getElementById('r-date').value,
+        responsible:document.getElementById('r-responsible').value,
+        source_document:document.getElementById('r-source').value,
+      }),
+    });
+    const op = await opRes.json();
+    if (!opRes.ok) throw new Error(op.error||'Failed');
+
+    for (const item of items) {
+      await fetch(`/api/operations/${op.id}/items`, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(item),
+      });
+    }
+    bootstrap.Modal.getInstance(document.getElementById('newReceiptModal')).hide();
+    showToast(`Receipt ${op.reference} created!`, 'success');
+    setTimeout(() => location.href=`/receipts/${op.id}`, 600);
+  } catch(err) {
+    errorEl.style.display='flex';
+    errorEl.innerHTML=`<i class="bi bi-x-circle-fill"></i> ${err.message}`;
+  } finally {
+    btn.disabled=false;
+    btn.innerHTML='<i class="bi bi-floppy"></i> Create Receipt';
+  }
+}
+</script>
+{% endblock %}

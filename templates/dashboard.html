@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — Inventify{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+
+{% block content %}
+
+<div id="low-stock-alert" class="ci-alert ci-alert-warning" style="display:none;">
+  <i class="bi bi-exclamation-triangle-fill"></i>
+  <span id="low-stock-alert-text"></span>
+  <a href="/stock" style="margin-left:auto;font-weight:600;color:inherit;text-decoration:underline;">View Stock →</a>
+</div>
+
+<div class="page-header">
+  <div class="page-header-left">
+    <h1>Dashboard</h1>
+    <p id="dash-date-label" style="color:var(--text-secondary);font-size:13px;margin:0;"></p>
+  </div>
+  <div style="display:flex;gap:10px;flex-wrap:wrap;">
+    <button class="btn-ci-secondary" onclick="goNewReceipt()"><i class="bi bi-box-arrow-in-down"></i> New Receipt</button>
+    <button class="btn-ci-primary"   onclick="goNewDelivery()"><i class="bi bi-box-arrow-up"></i> New Delivery</button>
+  </div>
+</div>
+
+<!-- TWO BIG OP CARDS -->
+<div class="row g-3 mb-4">
+
+  <div class="col-12 col-md-6">
+    <div class="ci-card op-card" onclick="location.href='/receipts'" style="cursor:pointer;min-height:220px;">
+      <div style="padding:28px;">
+        <div style="font-size:17px;font-weight:700;color:var(--text-primary);margin-bottom:22px;display:flex;align-items:center;gap:10px;">
+          <div style="width:38px;height:38px;background:var(--emerald-light);border-radius:9px;display:flex;align-items:center;justify-content:center;">
+            <i class="bi bi-box-arrow-in-down" style="color:var(--emerald-dark);font-size:18px;"></i>
+          </div>
+          Receipt
+        </div>
+        <div style="margin-bottom:22px;">
+          <button class="op-main-btn op-btn-green" onclick="event.stopPropagation();goNewReceipt()">
+            <span id="r-to-receive">0</span> to receive
+          </button>
+        </div>
+        <div class="op-stats-row">
+          <div class="op-stat"><span class="op-stat-val" id="r-late" style="color:var(--red);">0</span><span class="op-stat-lbl">Late</span></div>
+          <div class="op-stat-divider"></div>
+          <div class="op-stat"><span class="op-stat-val" id="r-operations" style="color:var(--blue);">0</span><span class="op-stat-lbl">Operations</span></div>
+        </div>
+        <div class="op-legend" style="margin-top:12px;">
+          <span><i class="bi bi-circle-fill" style="color:var(--red);font-size:7px;"></i> Late: scheduled &lt; today</span>
+          <span><i class="bi bi-circle-fill" style="color:var(--blue);font-size:7px;"></i> Operations: scheduled &gt; today</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-md-6">
+    <div class="ci-card op-card" onclick="location.href='/deliveries'" style="cursor:pointer;min-height:220px;">
+      <div style="padding:28px;">
+        <div style="font-size:17px;font-weight:700;color:var(--text-primary);margin-bottom:22px;display:flex;align-items:center;gap:10px;">
+          <div style="width:38px;height:38px;background:var(--amber-light);border-radius:9px;display:flex;align-items:center;justify-content:center;">
+            <i class="bi bi-box-arrow-up" style="color:#d97706;font-size:18px;"></i>
+          </div>
+          Delivery
+        </div>
+        <div style="margin-bottom:22px;">
+          <button class="op-main-btn op-btn-amber" onclick="event.stopPropagation();goNewDelivery()">
+            <span id="d-to-deliver">0</span> to Deliver
+          </button>
+        </div>
+        <div class="op-stats-row">
+          <div class="op-stat"><span class="op-stat-val" id="d-late"       style="color:var(--red);">0</span><span class="op-stat-lbl">Late</span></div>
+          <div class="op-stat-divider"></div>
+          <div class="op-stat"><span class="op-stat-val" id="d-waiting"    style="color:var(--amber);">0</span><span class="op-stat-lbl">Waiting</span></div>
+          <div class="op-stat-divider"></div>
+          <div class="op-stat"><span class="op-stat-val" id="d-operations" style="color:var(--blue);">0</span><span class="op-stat-lbl">Operations</span></div>
+        </div>
+        <div class="op-legend" style="margin-top:12px;">
+          <span><i class="bi bi-circle-fill" style="color:var(--red);font-size:7px;"></i> Late: scheduled &lt; today</span>
+          <span><i class="bi bi-circle-fill" style="color:var(--amber);font-size:7px;"></i> Waiting: waiting for stocks</span>
+          <span><i class="bi bi-circle-fill" style="color:var(--blue);font-size:7px;"></i> Operations: scheduled &gt; today</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- BOTTOM ROW -->
+<div class="row g-3">
+  <div class="col-12 col-xl-7">
+    <div class="ci-card h-100">
+      <div class="ci-card-header">
+        <div class="ci-card-title"><i class="bi bi-activity text-success"></i> Recent Activity</div>
+        <a href="/move-history" class="btn-ci-secondary" style="padding:6px 12px;font-size:12px;">View all <i class="bi bi-arrow-right"></i></a>
+      </div>
+      <div class="ci-table-wrap">
+        <table class="ci-table">
+          <thead><tr><th>Reference</th><th>Product</th><th>Type</th><th>Qty</th><th>Time</th></tr></thead>
+          <tbody id="recent-movements-body">
+            <tr><td colspan="5"><div style="display:flex;flex-direction:column;gap:10px;padding:8px 0;">
+              <div class="skeleton" style="height:16px;border-radius:4px;"></div>
+              <div class="skeleton" style="height:16px;width:85%;border-radius:4px;"></div>
+            </div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 col-xl-5">
+    <div class="ci-card h-100">
+      <div class="ci-card-header">
+        <div class="ci-card-title"><i class="bi bi-exclamation-triangle text-warning"></i> Low Stock Alert</div>
+        <button class="btn-ci-primary" onclick="goNewReceipt()" style="padding:6px 12px;font-size:12px;"><i class="bi bi-plus-lg"></i> Reorder</button>
+      </div>
+      <div id="low-stock-list" style="padding:8px 0;">
+        <div style="padding:12px 22px;display:flex;flex-direction:column;gap:12px;">
+          <div class="skeleton" style="height:48px;border-radius:8px;"></div>
+          <div class="skeleton" style="height:48px;border-radius:8px;"></div>
+        </div>
+      </div>
+      <div id="no-low-stock" style="display:none;">
+        <div class="empty-state" style="padding:40px 20px;">
+          <i class="bi bi-check-circle text-success"></i>
+          <h6>All stock levels healthy</h6>
+          <p>No products below reorder level.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+.op-card { transition: transform 0.2s, box-shadow 0.2s; }
+.op-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); }
+.op-main-btn {
+  padding: 10px 24px; border: none; border-radius: 8px;
+  font-size: 15px; font-weight: 700; font-family: 'DM Sans', sans-serif;
+  cursor: pointer; transition: all 0.15s;
+}
+.op-btn-green { background: var(--emerald-light); color: var(--emerald-dark); border: 1.5px solid #a7f3d0; }
+.op-btn-green:hover { background: #a7f3d0; }
+.op-btn-amber { background: var(--amber-light); color: #92400e; border: 1.5px solid #fde68a; }
+.op-btn-amber:hover { background: #fde68a; }
+.op-stats-row { display: flex; align-items: center; }
+.op-stat { display: flex; flex-direction: column; align-items: center; padding: 0 18px; }
+.op-stat:first-child { padding-left: 0; }
+.op-stat-val { font-size: 24px; font-weight: 700; line-height: 1; margin-bottom: 3px; }
+.op-stat-lbl { font-size: 11px; color: var(--text-muted); font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; }
+.op-stat-divider { width: 1px; height: 36px; background: var(--border); flex-shrink: 0; }
+.op-legend { display: flex; flex-direction: column; gap: 3px; font-size: 11px; color: var(--text-muted); }
+.op-legend span { display: flex; align-items: center; gap: 5px; }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+{% endblock %}

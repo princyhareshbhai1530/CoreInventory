@@ -1,0 +1,381 @@
+{% extends "base.html" %}
+{% block title %}Settings — Inventify{% endblock %}
+{% block page_title %}Settings{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+  <div class="page-header-left">
+    <h1>Settings</h1>
+    <p>Manage warehouse details and locations.</p>
+  </div>
+</div>
+
+<div class="row g-3">
+
+  <!-- ══ WAREHOUSE SECTION ══ -->
+  <div class="col-12 col-lg-6">
+    <div class="ci-card">
+      <div class="ci-card-header">
+        <div class="ci-card-title">
+          <i class="bi bi-building"></i> Warehouse
+        </div>
+        <button class="btn-ci-primary" style="padding:6px 14px;font-size:12px;"
+                onclick="openAddWarehouseModal()">
+          <i class="bi bi-plus-lg"></i> Add Warehouse
+        </button>
+      </div>
+
+      <!-- Warehouses list -->
+      <div id="warehouses-list" style="padding:8px 0;">
+        <div style="padding:12px 22px;"><div class="skeleton" style="height:60px;border-radius:8px;"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ LOCATION SECTION ══ -->
+  <div class="col-12 col-lg-6">
+    <div class="ci-card">
+      <div class="ci-card-header">
+        <div class="ci-card-title">
+          <i class="bi bi-geo-alt"></i> Location
+        </div>
+        <button class="btn-ci-primary" style="padding:6px 14px;font-size:12px;"
+                onclick="openAddLocationModal()">
+          <i class="bi bi-plus-lg"></i> Add Location
+        </button>
+      </div>
+
+      <p style="font-size:12px;color:var(--text-muted);padding:10px 22px 0;margin:0;">
+        <i class="bi bi-info-circle"></i>
+        This holds the multiple locations of warehouse, rooms etc.
+      </p>
+
+      <!-- Locations list -->
+      <div id="locations-list" style="padding:8px 0;">
+        <div style="padding:12px 22px;"><div class="skeleton" style="height:60px;border-radius:8px;"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- System info -->
+  <div class="col-12">
+    <div class="ci-card">
+      <div class="ci-card-header">
+        <div class="ci-card-title"><i class="bi bi-info-circle"></i> System Info</div>
+      </div>
+      <div class="ci-card-body">
+        <div class="row g-3">
+          <div class="col-6 col-md-3">
+            <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);margin-bottom:4px;">App</div>
+            <div style="font-size:14px;font-weight:600;">Inventify</div>
+          </div>
+          <div class="col-6 col-md-3">
+            <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);margin-bottom:4px;">Version</div>
+            <div style="font-size:14px;font-weight:600;">1.0 — Hackathon Build</div>
+          </div>
+          <div class="col-6 col-md-3">
+            <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);margin-bottom:4px;">Database</div>
+            <div style="font-size:14px;font-weight:600;">SQLite (offline)</div>
+          </div>
+          <div class="col-6 col-md-3">
+            <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);margin-bottom:4px;">Stack</div>
+            <div style="font-size:14px;font-weight:600;">Flask · Bootstrap 5</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ══ ADD / EDIT WAREHOUSE MODAL ══ -->
+<div class="modal fade" id="warehouseModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="wh-modal-title">
+          <i class="bi bi-building me-2"></i>Add Warehouse
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="wh-id">
+        <div class="ci-form-group">
+          <label class="ci-label">Name *</label>
+          <input type="text" class="ci-input" id="wh-name" placeholder="e.g. Main Warehouse">
+        </div>
+        <div class="ci-form-group">
+          <label class="ci-label">Short Code *</label>
+          <input type="text" class="ci-input" id="wh-code" placeholder="e.g. WH" maxlength="10">
+        </div>
+        <div class="ci-form-group">
+          <label class="ci-label">Address</label>
+          <textarea class="ci-input" id="wh-address" rows="3"
+                    placeholder="Full warehouse address"
+                    style="resize:vertical;"></textarea>
+        </div>
+        <div id="wh-error" class="ci-alert ci-alert-danger" style="display:none;"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-ci-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button class="btn-ci-primary" onclick="saveWarehouse()">
+          <i class="bi bi-check-lg"></i> Save
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ ADD / EDIT LOCATION MODAL ══ -->
+<div class="modal fade" id="locationModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="loc-modal-title">
+          <i class="bi bi-geo-alt me-2"></i>Add Location
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="loc-id">
+        <div class="ci-form-group">
+          <label class="ci-label">Name *</label>
+          <input type="text" class="ci-input" id="loc-name"
+                 placeholder="e.g. Stock, Rack A, Production Floor">
+        </div>
+        <div class="ci-form-group">
+          <label class="ci-label">Short Code *</label>
+          <input type="text" class="ci-input" id="loc-code"
+                 placeholder="e.g. WH/STOCK">
+        </div>
+        <div class="ci-form-group">
+          <label class="ci-label">Warehouse</label>
+          <select class="ci-select" id="loc-warehouse">
+            <option value="">— Select warehouse —</option>
+          </select>
+        </div>
+        <div id="loc-error" class="ci-alert ci-alert-danger" style="display:none;"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-ci-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button class="btn-ci-primary" onclick="saveLocation()">
+          <i class="bi bi-check-lg"></i> Save
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+  let warehouses = [];
+  let locations  = [];
+
+  document.addEventListener('DOMContentLoaded', async () => {
+    await loadWarehouses();
+    await loadLocations();
+  });
+
+  /* ══ WAREHOUSES ════════════════════════════════ */
+  async function loadWarehouses() {
+    const res = await fetch('/api/warehouses');
+    warehouses = await res.json();
+    renderWarehouses();
+    // Populate location dropdown
+    const sel = document.getElementById('loc-warehouse');
+    sel.innerHTML = '<option value="">— Select warehouse —</option>' +
+      warehouses.map(w => `<option value="${w.id}">${w.name} (${w.short_code})</option>`).join('');
+  }
+
+  function renderWarehouses() {
+    const el = document.getElementById('warehouses-list');
+    if (!warehouses.length) {
+      el.innerHTML = `<div class="empty-state" style="padding:30px;">
+        <i class="bi bi-building"></i><h6>No warehouses yet</h6>
+        <p>Add your first warehouse above.</p></div>`;
+      return;
+    }
+    el.innerHTML = warehouses.map(w => `
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;
+                  padding:14px 22px;border-bottom:1px solid var(--border-light);">
+        <div>
+          <div style="font-size:14px;font-weight:600;color:var(--text-primary);
+                      margin-bottom:4px;">${w.name}</div>
+          <div style="font-size:12px;color:var(--text-muted);">
+            <span style="background:var(--blue-light);color:#1d4ed8;padding:1px 8px;
+                         border-radius:10px;font-size:11px;font-weight:600;
+                         margin-right:6px;">${w.short_code}</span>
+            ${w.address || 'No address set'}
+          </div>
+        </div>
+        <div style="display:flex;gap:6px;flex-shrink:0;margin-left:12px;">
+          <button class="btn-ci-secondary" style="padding:5px 10px;font-size:12px;"
+                  onclick="editWarehouse(${w.id})">
+            <i class="bi bi-pencil"></i>
+          </button>
+          <button class="btn-ci-danger" style="padding:5px 10px;font-size:12px;"
+                  onclick="deleteWarehouse(${w.id},'${w.name.replace(/'/g,"\\'")}')">
+            <i class="bi bi-trash3"></i>
+          </button>
+        </div>
+      </div>`).join('');
+  }
+
+  function openAddWarehouseModal() {
+    document.getElementById('wh-id').value      = '';
+    document.getElementById('wh-name').value    = '';
+    document.getElementById('wh-code').value    = '';
+    document.getElementById('wh-address').value = '';
+    document.getElementById('wh-error').style.display = 'none';
+    document.getElementById('wh-modal-title').innerHTML =
+      '<i class="bi bi-building me-2"></i>Add Warehouse';
+    new bootstrap.Modal(document.getElementById('warehouseModal')).show();
+  }
+
+  function editWarehouse(id) {
+    const w = warehouses.find(w => w.id === id);
+    if (!w) return;
+    document.getElementById('wh-id').value      = w.id;
+    document.getElementById('wh-name').value    = w.name;
+    document.getElementById('wh-code').value    = w.short_code;
+    document.getElementById('wh-address').value = w.address;
+    document.getElementById('wh-error').style.display = 'none';
+    document.getElementById('wh-modal-title').innerHTML =
+      '<i class="bi bi-pencil me-2"></i>Edit Warehouse';
+    new bootstrap.Modal(document.getElementById('warehouseModal')).show();
+  }
+
+  async function saveWarehouse() {
+    const id      = document.getElementById('wh-id').value;
+    const name    = document.getElementById('wh-name').value.trim();
+    const code    = document.getElementById('wh-code').value.trim();
+    const address = document.getElementById('wh-address').value.trim();
+    const errEl   = document.getElementById('wh-error');
+    errEl.style.display = 'none';
+
+    if (!name) { errEl.style.display='flex'; errEl.innerHTML='<i class="bi bi-x-circle-fill"></i> Name is required.'; return; }
+    if (!code) { errEl.style.display='flex'; errEl.innerHTML='<i class="bi bi-x-circle-fill"></i> Short Code is required.'; return; }
+
+    const url    = id ? `/api/warehouses/${id}` : '/api/warehouses';
+    const method = id ? 'PUT' : 'POST';
+
+    const res  = await fetch(url, {
+      method, headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({name, short_code:code, address})
+    });
+    const data = await res.json();
+    if (!res.ok) { errEl.style.display='flex'; errEl.innerHTML=`<i class="bi bi-x-circle-fill"></i> ${data.error}`; return; }
+
+    bootstrap.Modal.getInstance(document.getElementById('warehouseModal')).hide();
+    showToast(id ? 'Warehouse updated!' : 'Warehouse added!', 'success');
+    await loadWarehouses();
+  }
+
+  async function deleteWarehouse(id, name) {
+    if (!confirm(`Delete warehouse "${name}"? This cannot be undone.`)) return;
+    const res = await fetch(`/api/warehouses/${id}`, {method:'DELETE'});
+    if (res.ok) { showToast('Warehouse deleted.', 'warning'); await loadWarehouses(); }
+    else showToast('Could not delete warehouse.', 'danger');
+  }
+
+  /* ══ LOCATIONS ═════════════════════════════════ */
+  async function loadLocations() {
+    const res = await fetch('/api/locations');
+    locations = await res.json();
+    renderLocations();
+  }
+
+  function renderLocations() {
+    const el = document.getElementById('locations-list');
+    if (!locations.length) {
+      el.innerHTML = `<div class="empty-state" style="padding:30px;">
+        <i class="bi bi-geo-alt"></i><h6>No locations yet</h6>
+        <p>Add locations to track stock per room or rack.</p></div>`;
+      return;
+    }
+    el.innerHTML = locations.map(l => `
+      <div style="display:flex;align-items:center;justify-content:space-between;
+                  padding:12px 22px;border-bottom:1px solid var(--border-light);">
+        <div>
+          <div style="font-size:13.5px;font-weight:600;color:var(--text-primary);">${l.name}</div>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">
+            <span style="background:var(--emerald-light);color:var(--emerald-dark);
+                         padding:1px 7px;border-radius:10px;font-size:10px;
+                         font-weight:600;margin-right:5px;">${l.short_code}</span>
+            ${l.warehouse_name ? 'Warehouse: ' + l.warehouse_name : 'No warehouse assigned'}
+          </div>
+        </div>
+        <div style="display:flex;gap:6px;flex-shrink:0;">
+          <button class="btn-ci-secondary" style="padding:5px 10px;font-size:12px;"
+                  onclick="editLocation(${l.id})">
+            <i class="bi bi-pencil"></i>
+          </button>
+          <button class="btn-ci-danger" style="padding:5px 10px;font-size:12px;"
+                  onclick="deleteLocation(${l.id},'${l.name.replace(/'/g,"\\'")}')">
+            <i class="bi bi-trash3"></i>
+          </button>
+        </div>
+      </div>`).join('');
+  }
+
+  function openAddLocationModal() {
+    document.getElementById('loc-id').value    = '';
+    document.getElementById('loc-name').value  = '';
+    document.getElementById('loc-code').value  = '';
+    document.getElementById('loc-warehouse').value = '';
+    document.getElementById('loc-error').style.display = 'none';
+    document.getElementById('loc-modal-title').innerHTML =
+      '<i class="bi bi-geo-alt me-2"></i>Add Location';
+    new bootstrap.Modal(document.getElementById('locationModal')).show();
+  }
+
+  function editLocation(id) {
+    const l = locations.find(l => l.id === id);
+    if (!l) return;
+    document.getElementById('loc-id').value          = l.id;
+    document.getElementById('loc-name').value        = l.name;
+    document.getElementById('loc-code').value        = l.short_code;
+    document.getElementById('loc-warehouse').value   = l.warehouse_id || '';
+    document.getElementById('loc-error').style.display = 'none';
+    document.getElementById('loc-modal-title').innerHTML =
+      '<i class="bi bi-pencil me-2"></i>Edit Location';
+    new bootstrap.Modal(document.getElementById('locationModal')).show();
+  }
+
+  async function saveLocation() {
+    const id     = document.getElementById('loc-id').value;
+    const name   = document.getElementById('loc-name').value.trim();
+    const code   = document.getElementById('loc-code').value.trim();
+    const whId   = document.getElementById('loc-warehouse').value;
+    const errEl  = document.getElementById('loc-error');
+    errEl.style.display = 'none';
+
+    if (!name) { errEl.style.display='flex'; errEl.innerHTML='<i class="bi bi-x-circle-fill"></i> Name is required.'; return; }
+    if (!code) { errEl.style.display='flex'; errEl.innerHTML='<i class="bi bi-x-circle-fill"></i> Short Code is required.'; return; }
+
+    const url    = id ? `/api/locations/${id}` : '/api/locations';
+    const method = id ? 'PUT' : 'POST';
+
+    const res  = await fetch(url, {
+      method, headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({name, short_code:code, warehouse_id: whId||null})
+    });
+    const data = await res.json();
+    if (!res.ok) { errEl.style.display='flex'; errEl.innerHTML=`<i class="bi bi-x-circle-fill"></i> ${data.error}`; return; }
+
+    bootstrap.Modal.getInstance(document.getElementById('locationModal')).hide();
+    showToast(id ? 'Location updated!' : 'Location added!', 'success');
+    await loadLocations();
+  }
+
+  async function deleteLocation(id, name) {
+    if (!confirm(`Delete location "${name}"?`)) return;
+    const res = await fetch(`/api/locations/${id}`, {method:'DELETE'});
+    if (res.ok) { showToast('Location deleted.', 'warning'); await loadLocations(); }
+    else showToast('Could not delete location.', 'danger');
+  }
+</script>
+{% endblock %}

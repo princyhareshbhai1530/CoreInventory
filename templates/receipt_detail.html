@@ -1,0 +1,448 @@
+{% extends "base.html" %}
+{% block title %}Receipt Detail — Inventify{% endblock %}
+{% block page_title %}Receipt Detail{% endblock %}
+
+{% block content %}
+
+<!-- Back button -->
+<div style="margin-bottom:20px;">
+  <a href="/receipts" class="btn-ci-secondary" style="padding:7px 14px;font-size:13px;">
+    <i class="bi bi-arrow-left"></i> Back to Receipts
+  </a>
+</div>
+
+<!-- Loading state -->
+<div id="loading-state">
+  <div class="ci-card" style="padding:40px;text-align:center;">
+    <div class="skeleton" style="height:24px;width:200px;margin:0 auto 12px;border-radius:4px;"></div>
+    <div class="skeleton" style="height:16px;width:300px;margin:0 auto;border-radius:4px;"></div>
+  </div>
+</div>
+
+<!-- Main detail (hidden until loaded) -->
+<div id="detail-content" style="display:none;">
+
+  <!-- Header card -->
+  <div class="ci-card mb-3">
+    <div class="ci-card-header">
+      <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+        <div>
+          <div style="font-size:11px;color:var(--text-muted);margin-bottom:2px;">RECEIPT</div>
+          <div style="font-size:20px;font-weight:700;font-family:'DM Mono',monospace;color:var(--text-primary);"
+               id="detail-reference"></div>
+        </div>
+        <div id="detail-status-badge"></div>
+      </div>
+
+      <!-- Action buttons -->
+      <div style="display:flex;gap:8px;flex-wrap:wrap;" id="action-buttons">
+        <!-- Rendered by JS based on status -->
+      </div>
+    </div>
+
+    <!-- Status flow indicator -->
+    <div class="status-flow" id="status-flow"></div>
+
+    <div class="ci-card-body">
+      <!-- Info grid -->
+      <div class="info-grid" id="info-grid"></div>
+    </div>
+  </div>
+
+  <!-- Products table card -->
+  <div class="ci-card mb-3">
+    <div class="ci-card-header">
+      <div class="ci-card-title">
+        <i class="bi bi-list-ul"></i> Products
+      </div>
+      <!-- Only show add button if not done/cancelled -->
+      <button class="btn-ci-secondary" style="padding:6px 12px;font-size:12px;"
+              id="add-item-btn" onclick="openAddItemModal()" style="display:none;">
+        <i class="bi bi-plus-lg"></i> Add Product
+      </button>
+    </div>
+
+    <div class="ci-table-wrap">
+      <table class="ci-table">
+        <thead>
+          <tr>
+            <th>Product</th>
+            <th>SKU</th>
+            <th>Ordered Qty</th>
+            <th>Done Qty</th>
+            <th id="remove-col-header"></th>
+          </tr>
+        </thead>
+        <tbody id="items-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Validate result alert -->
+  <div id="validate-result" style="display:none;" class="mb-3"></div>
+
+</div>
+
+<!-- ═══════════════════════════════════════════
+     ADD ITEM MODAL (for existing receipt)
+═══════════════════════════════════════════ -->
+<div class="modal fade" id="addItemModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-sm">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-plus-circle me-2"></i>Add Product</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="ci-form-group">
+          <label class="ci-label">Product *</label>
+          <select class="ci-select" id="modal-product-select">
+            <option value="">— Select product —</option>
+          </select>
+        </div>
+        <div class="ci-form-group">
+          <label class="ci-label">Quantity *</label>
+          <input type="number" class="ci-input" id="modal-qty" placeholder="0" min="0.01" step="0.01">
+        </div>
+        <div id="add-item-error" class="ci-alert ci-alert-danger" style="display:none;"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-ci-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button class="btn-ci-primary" onclick="saveNewItem()">
+          <i class="bi bi-check-lg"></i> Add
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/operations.js') }}"></script>
+<script>
+  // Get operation ID from URL  e.g. /receipts/3  →  3
+  const OP_ID = parseInt(window.location.pathname.split('/').pop());
+
+  // Auto-fill responsible from logged-in user
+  async function loadCurrentUserIntoForm() {
+    try {
+      const res  = await fetch('/api/me');
+      const user = await res.json();
+      // Will be used when editing responsible field
+    } catch(e) {}
+  }
+
+  let currentOp = null;
+
+  document.addEventListener('DOMContentLoaded', async () => {
+    loadCurrentUserIntoForm();
+    await loadProductsForDropdown();
+    await loadDetail();
+  });
+
+  /* ── Load receipt detail ──────────────────────── */
+  async function loadDetail() {
+    try {
+      const res  = await fetch(`/api/operations/${OP_ID}`);
+      if (!res.ok) throw new Error('Not found');
+      currentOp  = await res.json();
+
+      document.getElementById('loading-state').style.display  = 'none';
+      document.getElementById('detail-content').style.display = 'block';
+
+      renderHeader(currentOp);
+      renderInfoGrid(currentOp);
+      renderStatusFlow(currentOp.status);
+      renderItems(currentOp.items, currentOp.status);
+
+    } catch (e) {
+      document.getElementById('loading-state').innerHTML = `
+        <div class="ci-alert ci-alert-danger">
+          <i class="bi bi-x-circle-fill"></i> Could not load receipt. <a href="/receipts">Go back</a>
+        </div>`;
+    }
+  }
+
+  /* ── Header: reference, status badge, buttons ─── */
+  function renderHeader(op) {
+    document.getElementById('detail-reference').textContent = op.reference;
+    document.getElementById('detail-status-badge').innerHTML = statusBadge(op.status);
+
+    const btns    = document.getElementById('action-buttons');
+    const addBtn  = document.getElementById('add-item-btn');
+    addBtn.style.display = 'none';
+
+    // ── DONE: show print + success message ──────────
+    if (op.status === 'done') {
+      btns.innerHTML = `
+        <button class="btn-ci-secondary" onclick="printOperation()" style="padding:9px 18px;">
+          <i class="bi bi-printer"></i> Print
+        </button>
+        <div class="ci-alert ci-alert-success" style="margin:0;padding:8px 14px;">
+          <i class="bi bi-check-circle-fill"></i> Receipt Done — stock updated.
+        </div>`;
+      return;
+    }
+
+    // ── CANCELLED ────────────────────────────────────
+    if (op.status === 'cancelled') {
+      btns.innerHTML = `
+        <div class="ci-alert ci-alert-danger" style="margin:0;padding:8px 14px;">
+          <i class="bi bi-x-circle-fill"></i> This receipt has been cancelled.
+        </div>`;
+      return;
+    }
+
+    // ── DRAFT: show TODO (moves to Ready) + Cancel ───
+    if (op.status === 'draft') {
+      btns.innerHTML = `
+        <button class="btn-ci-validate" onclick="markReady()" style="background:var(--blue);">
+          <i class="bi bi-arrow-right-circle"></i> Mark as Ready
+        </button>
+        <button class="btn-ci-danger" onclick="cancelOperation()">
+          <i class="bi bi-x-lg"></i> Cancel
+        </button>`;
+      addBtn.style.display = 'inline-flex';
+      return;
+    }
+
+    // ── READY: show Validate + Cancel ───────────────
+    btns.innerHTML = `
+      <button class="btn-ci-validate" onclick="validateReceipt()">
+        <i class="bi bi-check2-all"></i> Validate
+      </button>
+      <button class="btn-ci-danger" onclick="cancelOperation()">
+        <i class="bi bi-x-lg"></i> Cancel
+      </button>`;
+    addBtn.style.display = 'inline-flex';
+  }
+
+  /* ── Info grid ────────────────────────────────── */
+  function renderInfoGrid(op) {
+    document.getElementById('info-grid').innerHTML = `
+      <div class="info-field">
+        <label>Vendor / Supplier</label>
+        <span>${op.partner_name || '—'}</span>
+      </div>
+      <div class="info-field">
+        <label>Scheduled Date</label>
+        <span>${fmtDate(op.scheduled_date)}</span>
+      </div>
+      <div class="info-field">
+        <label>Responsible</label>
+        <span>${op.responsible || 'Admin'}</span>
+      </div>
+      <div class="info-field">
+        <label>Source Document</label>
+        <span>${op.source_document || '—'}</span>
+      </div>
+      <div class="info-field">
+        <label>Created At</label>
+        <span>${op.created_at || '—'}</span>
+      </div>
+      <div class="info-field">
+        <label>Operation Type</label>
+        <span style="color:var(--emerald-dark);font-weight:600;">
+          <i class="bi bi-box-arrow-in-down"></i> Incoming Goods
+        </span>
+      </div>`;
+  }
+
+  /* ── Status flow bar ──────────────────────────── */
+  function renderStatusFlow(status) {
+    const steps  = ['draft','ready','done'];
+    const labels = { draft:'Draft', ready:'Ready', done:'Done' };
+    const idx    = steps.indexOf(status);
+
+    document.getElementById('status-flow').innerHTML = steps.map((s, i) => {
+      const isDone = i < idx;
+      const isCurr = s === status;
+      return `
+        ${i > 0 ? '<i class="bi bi-chevron-right status-arrow"></i>' : ''}
+        <div class="status-step ${isDone?'done-step':''} ${isCurr?'curr-step':''}">
+          <div class="status-dot ${isDone?'done':''} ${isCurr?'curr':''}"></div>
+          ${labels[s]}
+        </div>`;
+    }).join('');
+  }
+
+  /* ── Items table ──────────────────────────────── */
+  function renderItems(items, status) {
+    const tbody      = document.getElementById('items-body');
+    const canRemove  = status !== 'done' && status !== 'cancelled';
+
+    if (!items || items.length === 0) {
+      tbody.innerHTML = `
+        <tr><td colspan="5">
+          <div class="empty-state" style="padding:30px;">
+            <i class="bi bi-box"></i>
+            <h6>No products added yet</h6>
+            <p>Click "Add Product" to add items to this receipt.</p>
+          </div>
+        </td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = items.map(item => `
+      <tr>
+        <td style="font-weight:600;">${item.product_name}</td>
+        <td><span class="table-ref">${item.product_sku}</span></td>
+        <td>${item.quantity_demanded}</td>
+        <td>
+          <span style="color:var(--emerald-dark);font-weight:600;">
+            ${item.quantity_done}
+          </span>
+        </td>
+        <td>
+          ${canRemove
+            ? `<button onclick="removeItem(${item.id})"
+                       style="background:none;border:none;cursor:pointer;
+                              color:var(--red);font-size:15px;padding:4px 6px;">
+                 <i class="bi bi-trash3"></i>
+               </button>`
+            : ''}
+        </td>
+      </tr>`).join('');
+  }
+
+  /* ── Validate receipt ─────────────────────────── */
+  async function validateReceipt() {
+    if (currentOp.items.length === 0) {
+      showToast('Add at least one product before validating.', 'warning');
+      return;
+    }
+
+    const confirmed = confirm(
+      `Validate receipt ${currentOp.reference}?\n\nThis will increase stock for all listed products.`
+    );
+    if (!confirmed) return;
+
+    try {
+      const res  = await fetch(`/api/operations/${OP_ID}/validate`, { method: 'POST' });
+      const data = await res.json();
+
+      if (!res.ok) {
+        showToast(data.error || 'Validation failed', 'danger');
+        return;
+      }
+
+      showToast(`${currentOp.reference} validated! Stock updated.`, 'success');
+      await loadDetail(); // Refresh page state
+
+    } catch (e) {
+      showToast('Server error during validation.', 'danger');
+    }
+  }
+
+  /* ── Cancel operation ─────────────────────────── */
+  async function cancelOperation() {
+    if (!confirm(`Cancel receipt ${currentOp.reference}? This cannot be undone.`)) return;
+
+    const res  = await fetch(`/api/operations/${OP_ID}/cancel`, { method: 'POST' });
+    const data = await res.json();
+
+    if (res.ok) {
+      showToast('Receipt cancelled.', 'warning');
+      await loadDetail();
+    } else {
+      showToast(data.error || 'Could not cancel', 'danger');
+    }
+  }
+
+  /* ── Remove item ──────────────────────────────── */
+  async function removeItem(itemId) {
+    const res = await fetch(`/api/operations/${OP_ID}/items/${itemId}`, { method: 'DELETE' });
+    if (res.ok) {
+      showToast('Item removed.', 'info');
+      await loadDetail();
+    }
+  }
+
+  /* ── Add item modal ───────────────────────────── */
+  function openAddItemModal() {
+    const sel = document.getElementById('modal-product-select');
+    sel.innerHTML = `<option value="">— Select product —</option>` +
+      availableProducts.map(p =>
+        `<option value="${p.id}">${p.name} (${p.sku})</option>`
+      ).join('');
+    document.getElementById('modal-qty').value = '';
+    document.getElementById('add-item-error').style.display = 'none';
+    new bootstrap.Modal(document.getElementById('addItemModal')).show();
+  }
+
+  async function saveNewItem() {
+    const pid     = document.getElementById('modal-product-select').value;
+    const qty     = parseFloat(document.getElementById('modal-qty').value);
+    const errorEl = document.getElementById('add-item-error');
+    errorEl.style.display = 'none';
+
+    if (!pid) { errorEl.style.display='flex'; errorEl.innerHTML='<i class="bi bi-x-circle-fill"></i> Select a product.'; return; }
+    if (!qty || qty <= 0) { errorEl.style.display='flex'; errorEl.innerHTML='<i class="bi bi-x-circle-fill"></i> Enter a valid quantity.'; return; }
+
+    const res  = await fetch(`/api/operations/${OP_ID}/items`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ product_id: parseInt(pid), quantity_demanded: qty }),
+    });
+    const data = await res.json();
+
+    if (res.ok) {
+      bootstrap.Modal.getInstance(document.getElementById('addItemModal')).hide();
+      showToast('Product added.', 'success');
+      await loadDetail();
+    } else {
+      errorEl.style.display = 'flex';
+      errorEl.innerHTML = `<i class="bi bi-x-circle-fill"></i> ${data.error}`;
+    }
+  }
+
+  /* ── Print receipt ────────────────────────────── */
+  function printOperation() {
+    const ref    = currentOp ? currentOp.reference : '';
+    const vendor = currentOp ? currentOp.partner_name : '';
+    const date   = currentOp ? currentOp.scheduled_date : '';
+    const items  = currentOp ? currentOp.items : [];
+
+    const rows = items.map(i =>
+      `<tr>
+        <td>${i.product_name}</td>
+        <td>${i.product_sku}</td>
+        <td>${i.quantity_demanded}</td>
+        <td>${i.quantity_done}</td>
+      </tr>`
+    ).join('');
+
+    const win = window.open('', '_blank');
+    win.document.write(`
+      <!DOCTYPE html><html><head>
+        <title>Receipt ${ref}</title>
+        <style>
+          body { font-family: Arial, sans-serif; padding: 30px; color: #000; }
+          h1   { font-size: 22px; margin-bottom: 4px; }
+          .info { margin-bottom: 20px; font-size: 13px; color: #555; }
+          table { width: 100%; border-collapse: collapse; margin-top: 16px; }
+          th    { background: #f1f5f9; padding: 8px 12px; text-align: left; font-size: 12px; text-transform: uppercase; border-bottom: 2px solid #e2e8f0; }
+          td    { padding: 8px 12px; border-bottom: 1px solid #e2e8f0; font-size: 13px; }
+          .footer { margin-top: 30px; font-size: 12px; color: #888; text-align: center; }
+          .badge { background: #d1fae5; color: #065f46; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+        </style>
+      </head><body>
+        <h1>Receipt — ${ref}</h1>
+        <div class="info">
+          <strong>Vendor:</strong> ${vendor} &nbsp;|&nbsp;
+          <strong>Date:</strong> ${date} &nbsp;|&nbsp;
+          <strong>Status:</strong> <span class="badge">${currentOp.status}</span>
+        </div>
+        <table>
+          <thead><tr><th>Product</th><th>SKU</th><th>Ordered</th><th>Done</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+        <div class="footer">Inventify — Printed on ${new Date().toLocaleString('en-IN')}</div>
+      </body></html>`);
+    win.document.close();
+    win.print();
+  }
+
+</script>
+{% endblock %}

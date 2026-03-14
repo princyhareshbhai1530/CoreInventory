@@ -1,0 +1,176 @@
+{% extends "base.html" %}
+{% block title %}Adjustments — Inventify{% endblock %}
+{% block page_title %}Adjustments{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-header-left">
+    <h1>Stock Adjustments</h1>
+    <p>Fix mismatches between recorded stock and physical count.</p>
+  </div>
+  <button class="btn-ci-primary" onclick="openAdjModal()">
+    <i class="bi bi-plus-lg"></i> New Adjustment
+  </button>
+</div>
+
+<!-- Adjustments history table -->
+<div class="ci-card">
+  <div class="ci-card-header">
+    <div class="ci-card-title"><i class="bi bi-sliders"></i> Adjustment History</div>
+    <div class="search-wrap">
+      <i class="bi bi-search"></i>
+      <input type="text" class="search-input" id="adj-search" placeholder="Search product..." oninput="filterAdj()">
+    </div>
+  </div>
+  <div class="ci-table-wrap">
+    <table class="ci-table">
+      <thead>
+        <tr>
+          <th>Timestamp</th>
+          <th>Reference</th>
+          <th>Product</th>
+          <th>Adjustment</th>
+          <th>Type</th>
+        </tr>
+      </thead>
+      <tbody id="adj-body">
+        <tr><td colspan="5">
+          <div style="display:flex;flex-direction:column;gap:10px;padding:12px 0;">
+            <div class="skeleton" style="height:18px;border-radius:4px;"></div>
+            <div class="skeleton" style="height:18px;width:80%;border-radius:4px;"></div>
+          </div>
+        </td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="ci-card-footer" id="adj-footer" style="font-size:12px;color:var(--text-muted);">Loading...</div>
+</div>
+
+<!-- New Adjustment Modal -->
+<div class="modal fade" id="adjModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-sliders me-2"></i>New Stock Adjustment</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="ci-form-group">
+          <label class="ci-label">Select Product *</label>
+          <select class="ci-select" id="adj-product"></select>
+        </div>
+        <div id="adj-current" style="font-size:12px;color:var(--text-secondary);margin-bottom:14px;"></div>
+        <div class="ci-form-group">
+          <label class="ci-label">New Quantity (physical count) *</label>
+          <input type="number" class="ci-input" id="adj-qty" placeholder="Enter actual quantity" min="0" step="0.01">
+        </div>
+        <div class="ci-form-group">
+          <label class="ci-label">Reason</label>
+          <input type="text" class="ci-input" id="adj-reason" placeholder="e.g. Damaged goods, Physical count correction">
+        </div>
+        <div id="adj-error" class="ci-alert ci-alert-danger" style="display:none;"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-ci-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button class="btn-ci-primary" onclick="saveAdj()"><i class="bi bi-check-lg"></i> Apply Adjustment</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let allAdj = [];
+let products = [];
+
+document.addEventListener('DOMContentLoaded', async () => {
+  await loadAdj();
+  await loadProducts();
+});
+
+async function loadAdj() {
+  try {
+    const res = await fetch('/api/stock-ledger');
+    const all = await res.json();
+    allAdj = all.filter(m => m.movement_type === 'ADJUST');
+    renderAdj(allAdj);
+  } catch(e) { showToast('Could not load adjustments','danger'); }
+}
+
+async function loadProducts() {
+  const res = await fetch('/api/products');
+  products  = await res.json();
+  const sel = document.getElementById('adj-product');
+  sel.innerHTML = '<option value="">— Select product —</option>' +
+    products.map(p => `<option value="${p.id}" data-qty="${p.quantity_on_hand}" data-uom="${p.unit_of_measure}">${p.name} (${p.sku}) — ${p.quantity_on_hand} on hand</option>`).join('');
+  sel.onchange = () => {
+    const opt = sel.options[sel.selectedIndex];
+    const cur = document.getElementById('adj-current');
+    if (opt.value) cur.textContent = `Current stock: ${opt.dataset.qty} ${opt.dataset.uom}`;
+    else cur.textContent = '';
+  };
+}
+
+function renderAdj(items) {
+  const tbody  = document.getElementById('adj-body');
+  const footer = document.getElementById('adj-footer');
+  if (!items.length) {
+    tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state"><i class="bi bi-sliders"></i><h6>No adjustments yet</h6><p>Create a new adjustment to fix stock mismatches.</p></div></td></tr>`;
+    footer.textContent = 'No adjustments';
+    return;
+  }
+  tbody.innerHTML = items.map(m => {
+    const qty = parseFloat(m.quantity);
+    const qtyHtml = qty > 0
+      ? `<span class="qty-in">+${qty}</span>`
+      : `<span class="qty-out">${qty}</span>`;
+    return `<tr>
+      <td class="muted" style="font-size:12px;">${m.timestamp}</td>
+      <td><span class="table-ref">${m.reference||'—'}</span></td>
+      <td style="font-weight:600;">${m.product_name}</td>
+      <td>${qtyHtml}</td>
+      <td><span class="ci-badge badge-draft">Adjustment</span></td>
+    </tr>`;
+  }).join('');
+  footer.textContent = `${items.length} adjustment${items.length!==1?'s':''}`;
+}
+
+function filterAdj() {
+  const s = document.getElementById('adj-search').value.toLowerCase();
+  renderAdj(allAdj.filter(m => (m.product_name||'').toLowerCase().includes(s) || (m.reference||'').toLowerCase().includes(s)));
+}
+
+function openAdjModal() {
+  document.getElementById('adj-qty').value = '';
+  document.getElementById('adj-reason').value = '';
+  document.getElementById('adj-current').textContent = '';
+  document.getElementById('adj-error').style.display = 'none';
+  document.getElementById('adj-product').value = '';
+  new bootstrap.Modal(document.getElementById('adjModal')).show();
+}
+
+async function saveAdj() {
+  const pid    = document.getElementById('adj-product').value;
+  const qty    = parseFloat(document.getElementById('adj-qty').value);
+  const reason = document.getElementById('adj-reason').value.trim() || 'Manual adjustment';
+  const errEl  = document.getElementById('adj-error');
+  errEl.style.display = 'none';
+
+  if (!pid) { errEl.style.display='flex'; errEl.innerHTML='<i class="bi bi-x-circle-fill"></i> Select a product.'; return; }
+  if (isNaN(qty)||qty<0) { errEl.style.display='flex'; errEl.innerHTML='<i class="bi bi-x-circle-fill"></i> Enter a valid quantity (0 or more).'; return; }
+
+  const res  = await fetch(`/api/products/${pid}/adjust`, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ quantity: qty, reason }),
+  });
+  const data = await res.json();
+  if (!res.ok) { errEl.style.display='flex'; errEl.innerHTML=`<i class="bi bi-x-circle-fill"></i> ${data.error}`; return; }
+
+  bootstrap.Modal.getInstance(document.getElementById('adjModal')).hide();
+  showToast('Stock adjusted successfully!','success');
+  await loadAdj();
+  await loadProducts();
+}
+</script>
+{% endblock %}

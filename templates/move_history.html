@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+{% block title %}Move History — Inventify{% endblock %}
+{% block page_title %}Move History{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+  <div class="page-header-left">
+    <h1>Move History</h1>
+    <p>All stock movements — IN green, OUT red. Multiple products per reference shown as separate rows.</p>
+  </div>
+</div>
+
+<!-- Toolbar: NEW + search + view toggle (exact mockup) -->
+<div style="display:flex;align-items:center;justify-content:space-between;
+            flex-wrap:wrap;gap:12px;margin-bottom:16px;">
+  <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+    <!-- Filter tabs -->
+    <div class="filter-tabs">
+      <button class="filter-tab active" onclick="setFilter('all',this)">All</button>
+      <button class="filter-tab" onclick="setFilter('IN',this)">
+        <span style="color:var(--emerald);font-size:11px;">●</span> IN
+      </button>
+      <button class="filter-tab" onclick="setFilter('OUT',this)">
+        <span style="color:var(--red);font-size:11px;">●</span> OUT
+      </button>
+      <button class="filter-tab" onclick="setFilter('ADJUST',this)">
+        <span style="color:var(--slate);font-size:11px;">●</span> Adjust
+      </button>
+    </div>
+  </div>
+
+  <div style="display:flex;align-items:center;gap:8px;">
+    <!-- Search — by reference & contacts (from mockup) -->
+    <div class="search-wrap">
+      <i class="bi bi-search"></i>
+      <input type="text" class="search-input" id="ledger-search"
+             placeholder="Search by reference or contact..."
+             oninput="filterLedger()">
+    </div>
+
+    <!-- View toggle: List / Kanban (from mockup icons) -->
+    <div style="display:flex;border:1.5px solid var(--border);border-radius:8px;overflow:hidden;">
+      <button id="btn-list-view" onclick="setView('list')"
+              style="padding:7px 12px;border:none;cursor:pointer;font-size:14px;
+                     background:var(--emerald);color:#fff;transition:all 0.15s;"
+              title="List View">
+        <i class="bi bi-list-ul"></i>
+      </button>
+      <button id="btn-kanban-view" onclick="setView('kanban')"
+              style="padding:7px 12px;border:none;cursor:pointer;font-size:14px;
+                     background:var(--card-bg);color:var(--text-secondary);
+                     transition:all 0.15s;"
+              title="Kanban View">
+        <i class="bi bi-kanban"></i>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Summary strip -->
+<div class="row g-3 mb-3">
+  <div class="col-6 col-md-3">
+    <div class="ci-card" style="padding:14px 18px;">
+      <div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);margin-bottom:3px;">Total Moves</div>
+      <div style="font-size:22px;font-weight:700;" id="sum-total">—</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="ci-card" style="padding:14px 18px;">
+      <div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);margin-bottom:3px;">Stock IN</div>
+      <div style="font-size:22px;font-weight:700;color:var(--emerald);" id="sum-in">—</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="ci-card" style="padding:14px 18px;">
+      <div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);margin-bottom:3px;">Stock OUT</div>
+      <div style="font-size:22px;font-weight:700;color:var(--red);" id="sum-out">—</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="ci-card" style="padding:14px 18px;">
+      <div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);margin-bottom:3px;">Adjustments</div>
+      <div style="font-size:22px;font-weight:700;color:var(--slate);" id="sum-adj">—</div>
+    </div>
+  </div>
+</div>
+
+<!-- LIST VIEW -->
+<div id="list-view">
+  <div class="ci-card">
+    <div class="ci-table-wrap">
+      <table class="ci-table">
+        <thead>
+          <tr>
+            <th>Reference</th>
+            <th>Date</th>
+            <th>Contact</th>
+            <th>From</th>
+            <th>To</th>
+            <th>Quantity</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="ledger-body">
+          <tr><td colspan="7">
+            <div style="display:flex;flex-direction:column;gap:10px;padding:12px 0;">
+              <div class="skeleton" style="height:18px;border-radius:4px;"></div>
+              <div class="skeleton" style="height:18px;width:90%;border-radius:4px;"></div>
+              <div class="skeleton" style="height:18px;width:80%;border-radius:4px;"></div>
+            </div>
+          </td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="ci-card-footer" id="ledger-footer"
+         style="font-size:12px;color:var(--text-muted);">Loading...</div>
+  </div>
+</div>
+
+<!-- KANBAN VIEW (by status) -->
+<div id="kanban-view" style="display:none;">
+  <div class="row g-3" id="kanban-board"></div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/move_history.js') }}"></script>
+{% endblock %}

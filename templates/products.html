@@ -1,0 +1,210 @@
+{% extends "base.html" %}
+{% block title %}Products — Inventify{% endblock %}
+{% block page_title %}Products{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+  <div class="page-header-left">
+    <h1>Products</h1>
+    <p>Manage your product catalog and stock levels.</p>
+  </div>
+  <button class="btn-ci-primary" onclick="openAddModal()">
+    <i class="bi bi-plus-lg"></i> Add Product
+  </button>
+</div>
+
+<!-- Summary row -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3">
+    <div class="ci-card" style="padding:16px 20px;">
+      <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);margin-bottom:4px;">Total Products</div>
+      <div style="font-size:24px;font-weight:700;" id="sum-total">—</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="ci-card" style="padding:16px 20px;">
+      <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);margin-bottom:4px;">In Stock</div>
+      <div style="font-size:24px;font-weight:700;color:var(--emerald);" id="sum-instock">—</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="ci-card" style="padding:16px 20px;">
+      <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);margin-bottom:4px;">Low Stock</div>
+      <div style="font-size:24px;font-weight:700;color:var(--amber);" id="sum-low">—</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="ci-card" style="padding:16px 20px;">
+      <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);margin-bottom:4px;">Out of Stock</div>
+      <div style="font-size:24px;font-weight:700;color:var(--red);" id="sum-out">—</div>
+    </div>
+  </div>
+</div>
+
+<!-- Products Table Card -->
+<div class="ci-card">
+  <div class="ci-card-header">
+    <div class="ci-card-title">
+      <i class="bi bi-grid-3x3-gap"></i> All Products
+    </div>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+      <!-- Search -->
+      <div class="search-wrap">
+        <i class="bi bi-search"></i>
+        <input type="text" class="search-input" id="product-search"
+               placeholder="Search products..." oninput="filterProducts()">
+      </div>
+      <!-- Category filter -->
+      <select class="ci-select" id="category-filter" style="width:auto;padding:8px 12px;font-size:13px;" onchange="filterProducts()">
+        <option value="">All Categories</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="ci-table-wrap">
+    <table class="ci-table">
+      <thead>
+        <tr>
+          <th>Product</th>
+          <th>SKU</th>
+          <th>Category</th>
+          <th>Unit</th>
+          <th>On Hand</th>
+          <th>Reorder At</th>
+          <th>Stock Level</th>
+          <th>Unit Cost</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="products-body">
+        <tr><td colspan="9">
+          <div style="display:flex;flex-direction:column;gap:10px;padding:12px 0;">
+            <div class="skeleton" style="height:18px;border-radius:4px;"></div>
+            <div class="skeleton" style="height:18px;width:90%;border-radius:4px;"></div>
+            <div class="skeleton" style="height:18px;width:80%;border-radius:4px;"></div>
+          </div>
+        </td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="ci-card-footer" id="products-footer" style="font-size:12px;color:var(--text-muted);">
+    Loading...
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     ADD PRODUCT MODAL
+═══════════════════════════════════════════ -->
+<div class="modal fade" id="addProductModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-plus-circle me-2"></i>Add New Product</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="row g-3">
+          <div class="col-12">
+            <div class="ci-form-group">
+              <label class="ci-label">Product Name *</label>
+              <input type="text" class="ci-input" id="p-name" placeholder="e.g. Steel Rods">
+            </div>
+          </div>
+          <div class="col-6">
+            <div class="ci-form-group">
+              <label class="ci-label">SKU / Code *</label>
+              <input type="text" class="ci-input" id="p-sku" placeholder="e.g. SKU-006">
+            </div>
+          </div>
+          <div class="col-6">
+            <div class="ci-form-group">
+              <label class="ci-label">Category</label>
+              <input type="text" class="ci-input" id="p-category" placeholder="e.g. Raw Materials">
+            </div>
+          </div>
+          <div class="col-6">
+            <div class="ci-form-group">
+              <label class="ci-label">Unit of Measure</label>
+              <select class="ci-select" id="p-uom">
+                <option>Units</option>
+                <option>Kg</option>
+                <option>Meters</option>
+                <option>Liters</option>
+                <option>Boxes</option>
+                <option>Pieces</option>
+              </select>
+            </div>
+          </div>
+          <div class="col-6">
+            <div class="ci-form-group">
+              <label class="ci-label">Unit Cost (₹)</label>
+              <input type="number" class="ci-input" id="p-cost" placeholder="0.00" min="0">
+            </div>
+          </div>
+          <div class="col-6">
+            <div class="ci-form-group">
+              <label class="ci-label">Opening Stock</label>
+              <input type="number" class="ci-input" id="p-qty" placeholder="0" min="0">
+            </div>
+          </div>
+          <div class="col-6">
+            <div class="ci-form-group">
+              <label class="ci-label">Reorder Level</label>
+              <input type="number" class="ci-input" id="p-reorder" placeholder="10" min="0">
+            </div>
+          </div>
+        </div>
+        <div id="add-product-error" class="ci-alert ci-alert-danger mt-2" style="display:none;"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-ci-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button class="btn-ci-primary" onclick="saveProduct()" id="save-product-btn">
+          <i class="bi bi-check-lg"></i> Save Product
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     ADJUST STOCK MODAL
+═══════════════════════════════════════════ -->
+<div class="modal fade" id="adjustModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-sm">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-pencil me-2"></i>Adjust Stock</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size:13px;color:var(--text-secondary);margin-bottom:14px;">
+          Adjusting: <strong id="adjust-product-name"></strong>
+        </p>
+        <input type="hidden" id="adjust-product-id">
+        <div class="ci-form-group">
+          <label class="ci-label">New Quantity</label>
+          <input type="number" class="ci-input" id="adjust-qty" min="0" placeholder="Enter actual count">
+        </div>
+        <div class="ci-form-group">
+          <label class="ci-label">Reason</label>
+          <input type="text" class="ci-input" id="adjust-reason" placeholder="e.g. Physical count correction">
+        </div>
+        <div id="adjust-error" class="ci-alert ci-alert-danger mt-2" style="display:none;"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-ci-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button class="btn-ci-primary" onclick="saveAdjustment()">
+          <i class="bi bi-check-lg"></i> Update Stock
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/products.js') }}"></script>
+{% endblock %}
